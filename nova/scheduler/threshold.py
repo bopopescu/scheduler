@@ -2,7 +2,7 @@
 from __future__ import division
 from oslo_log import log as logging
 import MySQLdb
-
+import subprocess
 
 LOG = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class ThresholdManager():
 			spot_instance_id = row[0]
 
 		spot_instances_data = []
-		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='9'")
+		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='9' and vm_state='active'")
 		data = cursor.fetchall()
 
 		for row in data:
@@ -68,7 +68,7 @@ class ThresholdManager():
 			instance_data['id'] = row[1]
 			instance_data['uuid'] = row[2]
 			instance_data['vm_state'] = row[3]
-			spot_instances_id.append(instance_data)
+			spot_instances_data.append(instance_data)
 
 		return spot_instances_data
 
@@ -86,19 +86,21 @@ class ThresholdManager():
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 1
 			ThresholdManager.spot = 1
-		elif total_usage >=25 and total_usage < 82:
+		elif total_usage >=25 and total_usage < 44:
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 1
 			ThresholdManager.spot = 0
-		elif total_usage >=82:
+		elif total_usage >=45:
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 0
 			ThresholdManager.spot = 0
-
-		servers_data = self.get_server_data()
-		for i in servers_data:
-			server_name = i['name']
-
+			servers_data = self.get_server_data()
+			LOG.debug('Servers Data %(servers_data)s', {'servers_data': servers_data})
+			for i in servers_data:
+			 	if i['vm_state'] == 'active':
+			 		server_name = i['name']
+			 		subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_delete_server.sh %s" % (str(server_name)), shell=True)
+			 		LOG.debug('Deleted Server %(name)s',{'name': i['name']})
 
 	def get_attributes(self):
 		attributes = {}
