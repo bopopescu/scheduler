@@ -30,6 +30,7 @@ import nova.conf
 from nova.i18n import _, _LW
 from nova import objects
 from nova import servicegroup
+from threshold import ThresholdManager
 
 CONF = nova.conf.CONF
 
@@ -68,6 +69,8 @@ class Scheduler(object):
 
     def run_periodic_tasks(self, context):
         """Manager calls this so drivers can perform periodic tasks."""
+        threshold_manager = ThresholdManager()
+        # threshold_manager.update_attributes()
         pass
 
     def hosts_up(self, context, topic):

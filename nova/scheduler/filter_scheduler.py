@@ -18,7 +18,7 @@ The FilterScheduler is for creating instances locally.
 You can customize this scheduler by specifying your own Host Filters and
 Weighing Functions.
 """
-
+from __future__ import division
 import random
 
 from oslo_log import log as logging
@@ -30,7 +30,11 @@ from nova.i18n import _
 from nova import rpc
 from nova.scheduler import driver
 from nova.scheduler import scheduler_options
+from nova.scheduler import host_manager
+from threshold import ThresholdManager
 
+import MySQLdb
+from collections import OrderedDict
 
 CONF = nova.conf.CONF
 LOG = logging.getLogger(__name__)
@@ -42,16 +46,37 @@ class FilterScheduler(driver.Scheduler):
         super(FilterScheduler, self).__init__(*args, **kwargs)
         self.options = scheduler_options.SchedulerOptions()
         self.notifier = rpc.get_notifier('scheduler')
-
+	
     def select_destinations(self, context, spec_obj):
         """Selects a filtered set of hosts and nodes."""
         self.notifier.info(
             context, 'scheduler.select_destinations.start',
             dict(request_spec=spec_obj.to_legacy_request_spec_dict()))
+	
+	request = dict(request_spec=spec_obj.to_legacy_request_spec_dict())
+	LOG.debug('Request Object as dict is: %(diction)s', {'diction': request['request_spec']})
+	flavor = request['request_spec']['instance_type']
+	LOG.debug('Flavor name %(name)s', {'name':flavor.name})
+	instance_type = flavor.name
+	instance_data = {}
+	allowed_list = []
+	threshold_manager = ThresholdManager()
+	attributes = threshold_manager.get_attributes()
+	LOG.debug('Threshold manager %(attr)s', {'attr': attributes})
+	if 'on_demand_high' in attributes:
+		allowed_list.append('tiny.on-demand')
+	if 'on_demand_low' in attributes:
+		allowed_list.append('tiny.on-demand')
+	if 'spot' in attributes:
+		allowed_list.append('tiny.spot')
 
-        num_instances = spec_obj.num_instances
+	# if flavor.name not in allowed_list:
+	# 	LOG.debug('Server seems to be loaded. %(flavor_name)s cannot be created', {'flavor_name': flavor.name})
+ #        reason = _('Server load')
+ #        raise exception.NoValidHost(reason=reason)
+
+	num_instances = spec_obj.num_instances
         selected_hosts = self._schedule(context, spec_obj)
-
         # Couldn't fulfill the request_spec
         if len(selected_hosts) < num_instances:
             # NOTE(Rui Chen): If multiple creates failed, set the updated time
@@ -102,7 +127,7 @@ class FilterScheduler(driver.Scheduler):
         # traverse this list once. This can bite you if the hosts
         # are being scanned in a filter or weighing function.
         hosts = self._get_all_host_states(elevated)
-
+	
         selected_hosts = []
         num_instances = spec_obj.num_instances
         # NOTE(sbauza): Adding one field for any out-of-tree need
