@@ -48,6 +48,30 @@ class ThresholdManager():
 		db.close()
 		return [total_ram, total_ram_used]
 
+	def get_server_data(self):
+		db = MySQLdb.connect("127.0.0.1","root","password","nova")
+		cursor = db.cursor()
+		cursor.execute("select id from instance_types where name='tiny.spot'")
+		data = cursor.fetchall()
+		spot_instance_id = 0
+
+		for row in data:
+			spot_instance_id = row[0]
+
+		spot_instances_data = []
+		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='9'")
+		data = cursor.fetchall()
+
+		for row in data:
+			instance_data = {}
+			instance_data['name'] = row[0]
+			instance_data['id'] = row[1]
+			instance_data['uuid'] = row[2]
+			instance_data['vm_state'] = row[3]
+			spot_instances_id.append(instance_data)
+
+		return spot_instances_data
+
 	def update_attributes(self):
 		vcpus_data = self.get_vcpus_data()
 		ram_data = self.get_ram_data()
@@ -70,6 +94,11 @@ class ThresholdManager():
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 0
 			ThresholdManager.spot = 0
+
+		servers_data = self.get_server_data()
+		for i in servers_data:
+			server_name = i['name']
+
 
 	def get_attributes(self):
 		attributes = {}

@@ -56,7 +56,7 @@ class FilterScheduler(driver.Scheduler):
 	request = dict(request_spec=spec_obj.to_legacy_request_spec_dict())
 	LOG.debug('Request Object as dict is: %(diction)s', {'diction': request['request_spec']})
 	flavor = request['request_spec']['instance_type']
-	LOG.debug('Flavor name %(name)s', {'name':flavor.name})
+	LOG.debug('Flavor name %(name)s', {'name': type(str(flavor.name))})
 	instance_type = flavor.name
 	instance_data = {}
 	allowed_list = []
@@ -69,11 +69,14 @@ class FilterScheduler(driver.Scheduler):
 		allowed_list.append('tiny.on-demand')
 	if 'spot' in attributes:
 		allowed_list.append('tiny.spot')
+	# LOG.debug('Allowed list %(allowed)s', {'allowed': allowed_list})
+	# if str(flavor.name) == 'tiny.on-demand':
+	# 	LOG.debug('Found tiny on demand')
 
-	# if flavor.name not in allowed_list:
-	# 	LOG.debug('Server seems to be loaded. %(flavor_name)s cannot be created', {'flavor_name': flavor.name})
- #        reason = _('Server load')
- #        raise exception.NoValidHost(reason=reason)
+	if str(flavor.name) not in allowed_list:
+		LOG.debug('Server seems to be loaded. %(flavor_name)s cannot be created', {'flavor_name': flavor.name})
+		reason = _('Server load')
+		raise exception.NoValidHost(reason=reason)
 
 	num_instances = spec_obj.num_instances
         selected_hosts = self._schedule(context, spec_obj)
