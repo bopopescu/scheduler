@@ -56,7 +56,27 @@ class InstanceManager(object):
 
 		return nodes
 	
-	def vm_list(hostname):
+	def vm_list(self,hostname):
+		vm_list = []
+		
 		db = MySQLdb.connect("127.0.0.1","root","password","nova")
 		cursor = db.cursor()
-		query_string = 'select '
+		query_string = 'select display_name,memory_mb,vcpus,root_gb from instances where host='+hostname+''
+		cursor.execute(query_string)
+
+		data = cursor.fetchall()
+
+		for row in data:
+			vm_data = {}
+			display_name = row['display_name']
+			ram = row['memory_mb']
+			vcpus = row['vcpus']
+			disk = row['root_gb']
+
+			vm_data['ram'] = ram
+			vm_data['vcpus'] = vcpus
+			vm_data['disk'] = disk
+
+			vm_list.append(vm_data)
+
+		return vm_list
