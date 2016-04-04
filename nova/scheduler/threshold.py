@@ -1,4 +1,3 @@
-# import time, threading
 from __future__ import division
 from oslo_log import log as logging
 import MySQLdb
@@ -16,7 +15,7 @@ class ThresholdManager():
 
 	def __init__(self):
 		self.update_attributes()
-
+		
 	def get_vcpus_data(self):
 		db = MySQLdb.connect("127.0.0.1","root","password","nova")
 		cursor = db.cursor()
@@ -98,8 +97,8 @@ class ThresholdManager():
 			LOG.debug('Servers Data %(servers_data)s', {'servers_data': servers_data})
 			for i in servers_data:
 			 	if i['vm_state'] == 'active':
-			 		server_name = i['name']
-			 		subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_delete_server.sh %s" % (str(server_name)), shell=True)
+			 		server_name = i['uuid']
+			 		subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_delete_server.sh %s" % (i['uuid']), shell=True)
 			 		LOG.debug('Deleted Server %(name)s',{'name': i['name']})
 
 	def get_attributes(self):
