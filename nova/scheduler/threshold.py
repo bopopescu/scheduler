@@ -59,7 +59,7 @@ class ThresholdManager():
 			spot_instance_id = row[0]
 
 		spot_instances_data = []
-		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='9' and vm_state='active'")
+		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='11' and vm_state='active'")
 		data = cursor.fetchall()
 
 		for row in data:
@@ -98,7 +98,7 @@ class ThresholdManager():
 			LOG.debug('Servers Data %(servers_data)s', {'servers_data': servers_data})
 			for i in servers_data:
 			 	if i['vm_state'] == 'active':
-			 		server_name = i['name']
+			 		server_name = i['uuid']
 			 		subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_delete_server.sh %s" % (str(server_name)), shell=True)
 			 		LOG.debug('Deleted Server %(name)s',{'name': i['name']})
 
