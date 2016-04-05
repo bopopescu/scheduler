@@ -56,7 +56,7 @@ class FilterScheduler(driver.Scheduler):
 	request = dict(request_spec=spec_obj.to_legacy_request_spec_dict())
 	LOG.debug('Request Object as dict is: %(diction)s', {'diction': request['request_spec']})
 	flavor = request['request_spec']['instance_type']
-	LOG.debug('Flavor name %(name)s', {'name': type(str(flavor.name))})
+	LOG.debug('Flavor name %(name)s', {'name': type(flavor.name)})
 	instance_type = flavor.name
 	instance_data = {}
 	allowed_list = []
@@ -107,6 +107,9 @@ class FilterScheduler(driver.Scheduler):
         self.notifier.info(
             context, 'scheduler.select_destinations.end',
             dict(request_spec=spec_obj.to_legacy_request_spec_dict()))
+
+        LOG.debug('Destination type %(dest_type)s', {'dest_type':type(dests)})
+        LOG.debug('Destination data %(dest)s', {'dest':dests})
         return dests
 
     def _get_configuration_options(self):
