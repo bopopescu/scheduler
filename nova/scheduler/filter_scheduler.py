@@ -129,7 +129,7 @@ class FilterScheduler(driver.Scheduler):
             result = self.best_fit(vm_details, node_details)
             result_nodes.append(result)
 
-        dests = [dict(host=node['nodename'], nodename=node['hostname']) for node in result_nodes]
+        dests = [dict(host=unicode(node['nodename'],'utf-8'), nodename=unicode(node['hostname'],'utf-8'), limits={'memory_mb':123, 'disk_gb': 47.0}) for node in result_nodes]
 
         return dests
 
