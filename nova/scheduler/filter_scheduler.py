@@ -64,9 +64,9 @@ class FilterScheduler(driver.Scheduler):
 	attributes = threshold_manager.get_attributes()
 	LOG.debug('Threshold manager %(attr)s', {'attr': attributes})
 	if 'on_demand_high' in attributes:
-		allowed_list.append('tiny.on-demand')
+		allowed_list.append('tiny.on-demand-high')
 	if 'on_demand_low' in attributes:
-		allowed_list.append('tiny.on-demand')
+		allowed_list.append('tiny.on-demand-low')
 	if 'spot' in attributes:
 		allowed_list.append('tiny.spot')
 	# LOG.debug('Allowed list %(allowed)s', {'allowed': allowed_list})

@@ -59,7 +59,7 @@ class ThresholdManager():
 			spot_instance_id = row[0]
 
 		spot_instances_data = []
-		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='11' and vm_state='active'")
+		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='10' and vm_state='active'")
 		data = cursor.fetchall()
 
 		for row in data:
@@ -71,6 +71,40 @@ class ThresholdManager():
 			spot_instances_data.append(instance_data)
 
 		return spot_instances_data
+
+	def get_ondemand_low_data(self):
+		on_demand_low_data = []
+		db = MySQLdb.connect("127.0.0.1","root","password","nova")
+		cursor = db.cursor()
+		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='9' and vm_state='active'")
+		data = cursor.fetchall()
+
+		for row in data:
+			instance_data = {}
+			instance_data['name'] = row[0]
+			instance_data['id'] = row[1]
+			instance_data['uuid'] = row[2]
+			instance_data['vm_state'] = row[3]
+			on_demand_low_data.append(instance_data)
+
+		return on_demand_low_data
+
+	def get_paused_on_demand_servers(self):
+		on_demand_low_data = []
+		db = MySQLdb.connect("127.0.0.1","root","password","nova")
+		cursor = db.cursor()
+		cursor.execute("select display_name,id,uuid,vm_state,instance_type_id from instances where instance_type_id='9' and vm_state='paused'")
+		data = cursor.fetchall()
+
+		for row in data:
+			instance_data = {}
+			instance_data['name'] = row[0]
+			instance_data['id'] = row[1]
+			instance_data['uuid'] = row[2]
+			instance_data['vm_state'] = row[3]
+			on_demand_low_data.append(instance_data)
+
+		return on_demand_low_data
 
 	def update_attributes(self):
 		vcpus_data = self.get_vcpus_data()
@@ -86,10 +120,23 @@ class ThresholdManager():
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 1
 			ThresholdManager.spot = 1
+			on_demand_low_paused_servers = self.get_paused_on_demand_servers()
+			LOG.debug('Server data Paused %(on_pause)s', {'on_pause': on_demand_low_paused_servers})
+			for i in on_demand_low_paused_servers:
+				if i['vm_state'] == 'paused':
+					subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_unpause_server.sh %s" % (str(server_name)), shell=True)
+					LOG.debug("Unpausing %(unpaused_server)s", {'unpaused_server':i['name']})
 		elif total_usage >=25 and total_usage < 44:
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 1
 			ThresholdManager.spot = 0
+			on_demand_low_paused_servers = self.get_paused_on_demand_servers()
+			LOG.debug('Server data Paused %(on_pause)s', {'on_pause': on_demand_low_paused_servers})
+			for i in on_demand_low_paused_servers:
+				if i['vm_state'] == 'paused':
+					subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_unpause_server.sh %s" % (str(server_name)), shell=True)
+					LOG.debug("Unpausing %(unpaused_server)s", {'unpaused_server':i['name']})
+
 		elif total_usage >=45:
 			ThresholdManager.on_demand_high = 1
 			ThresholdManager.on_demand_low = 0
@@ -101,6 +148,14 @@ class ThresholdManager():
 			 		server_name = i['uuid']
 			 		subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_delete_server.sh %s" % (str(server_name)), shell=True)
 			 		LOG.debug('Deleted Server %(name)s',{'name': i['name']})
+
+			on_demand_low_servers = self.get_ondemand_low_data()
+			LOG.debug('On Deman Low server Data %(on_d_l)s', {'on_d_l': on_demand_low_servers})
+			for i in on_demand_low_servers:
+				if i['vm_state'] == 'active':
+					server_name = i['uuid']
+					subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_pause_server.sh %s" % (str(server_name)), shell=True)
+					LOG.debug('Pausing Server %(name)s', {'name': i['name']})
 
 	def get_attributes(self):
 		attributes = {}
