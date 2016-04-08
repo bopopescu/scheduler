@@ -32,6 +32,7 @@ from nova.scheduler import driver
 from nova.scheduler import scheduler_options
 from nova.scheduler import host_manager
 from threshold import ThresholdManager
+from instance_manager import InstanceManager
 
 import MySQLdb
 from collections import OrderedDict
@@ -64,12 +65,14 @@ class FilterScheduler(driver.Scheduler):
         vm_disk = int(flavor.root_gb)
 
         vm_details = {}
-        vm['disk'] = vm_disk
-        vm['ram'] = vm_ram
-        vm['vcpus'] = vm_vcpus
+        vm_details['disk'] = vm_disk
+        vm_details['ram'] = vm_ram
+        vm_details['vcpus'] = vm_vcpus
+        LOG.debug("VM request details: %(vm_details)s", {'vm_details': vm_details})
 
         instance_manager = InstanceManager()
-        node_details = instance_manager.node_details
+        node_details = instance_manager.node_details()
+        LOG.debug('Node Details %(node_details)s', {'node_details': node_details})
 
     	instance_type = flavor.name
         instance_data = {}
@@ -79,9 +82,9 @@ class FilterScheduler(driver.Scheduler):
     	LOG.debug('Threshold manager %(attr)s', {'attr': attributes})
 
     	if 'on_demand_high' in attributes:
-    		allowed_list.append('tiny.on-demand')
+    		allowed_list.append('tiny.on-demand-high')
     	if 'on_demand_low' in attributes:
-    		allowed_list.append('tiny.on-demand')
+    		allowed_list.append('tiny.on-demand-low')
     	if 'spot' in attributes:
     		allowed_list.append('tiny.spot')
     	# LOG.debug('Allowed list %(allowed)s', {'allowed': allowed_list})
@@ -94,44 +97,60 @@ class FilterScheduler(driver.Scheduler):
     		raise exception.NoValidHost(reason=reason)
 
     	num_instances = spec_obj.num_instances
-            # selected_hosts = self._schedule(context, spec_obj)
-            # # Couldn't fulfill the request_spec
-            # if len(selected_hosts) < num_instances:
-            #     # NOTE(Rui Chen): If multiple creates failed, set the updated time
-            #     # of selected HostState to None so that these HostStates are
-            #     # refreshed according to database in next schedule, and release
-            #     # the resource consumed by instance in the process of selecting
-            #     # host.
-            #     for host in selected_hosts:
-            #         host.obj.updated = None
+        selected_hosts = self._schedule(context, spec_obj)
+        # Couldn't fulfill the request_spec
+        if len(selected_hosts) < num_instances:
+            # NOTE(Rui Chen): If multiple creates failed, set the updated time
+            # of selected HostState to None so that these HostStates are
+            # refreshed according to database in next schedule, and release
+            # the resource consumed by instance in the process of selecting
+            # host.
+            for host in selected_hosts:
+                host.obj.updated = None
 
-            #     # Log the details but don't put those into the reason since
-            #     # we don't want to give away too much information about our
-            #     # actual environment.
-            #     LOG.debug('There are %(hosts)d hosts available but '
-            #               '%(num_instances)d instances requested to build.',
-            #               {'hosts': len(selected_hosts),
-            #                'num_instances': num_instances})
+            # Log the details but don't put those into the reason since
+            # we don't want to give away too much information about our
+            # actual environment.
+            LOG.debug('There are %(hosts)d hosts available but '
+                      '%(num_instances)d instances requested to build.',
+                      {'hosts': len(selected_hosts),
+                       'num_instances': num_instances})
 
-            #     reason = _('There are not enough hosts available.')
-            #     raise exception.NoValidHost(reason=reason)
+            reason = _('There are not enough hosts available.')
+            raise exception.NoValidHost(reason=reason)
 
-            # dests = [dict(host=host.obj.host, nodename=host.obj.nodename,
-            #               limits=host.obj.limits) for host in selected_hosts]
+        dests = [dict(host=host.obj.host, nodename=host.obj.nodename,
+                      limits=host.obj.limits) for host in selected_hosts]
 
-            # self.notifier.info(
-            #     context, 'scheduler.select_destinations.end',
-            #     dict(request_spec=spec_obj.to_legacy_request_spec_dict()))
-            # return dests
+        LOG.debug('Result Dict %(dests)s', {'dests': dests})
+        self.notifier.info(
+            context, 'scheduler.select_destinations.end',
+            dict(request_spec=spec_obj.to_legacy_request_spec_dict()))
+        # return dests
 
-        result_nodes = []
-        for i in num_instances:
-            result = self.best_fit(vm_details, node_details)
-            result_nodes.append(result)
+        # result_nodes = []
+        result_node = self.best_fit(vm_details, node_details)
+        selected_node_details = None
+        for node in node_details:
+            if result_node == node['hostname']:
+                selected_node_details = node
+                break
 
-        dests = [dict(host=node['nodename'], nodename=node['hostname']) for node in result_nodes]
+        dest = [{'host':unicode(selected_node_details['hostname']),
+                'nodename':unicode(selected_node_details['hostname']),
+                'limits': {'memory_mb':selected_node_details['total_ram'],
+                            'disk_gb': selected_node_details['total_disk']}}]
 
-        return dests
+        return dest
+
+        # result_nodes = []
+        # for i in num_instances:
+        #     result = self.best_fit(vm_details, node_details)
+        #     result_nodes.append(result)
+
+        # dests = [dict(host=node['nodename'], nodename=node['hostname']) for node in result_nodes]
+
+        # return dests
 
     def _get_configuration_options(self):
         """Fetch options dictionary. Broken out for testing."""
@@ -188,20 +207,22 @@ class FilterScheduler(driver.Scheduler):
 
         return result_node    
 
-    def best_fit(vm, node_details):
-        weights = [1,2,3]
+    def best_fit(self,vm, node_details):
+        LOG.debug("Saleem")
+        weights = [0.5,0.3,0.2]
         result_node = None
         cur_ratio = 1.0
         for n in node_details:
             disk_ratio = (n['free_disk'] - vm['disk'])/n['total_disk']
             ram_ratio = (n['free_ram'] - vm['ram'])/n['total_ram']
             vcpus_ratio = (n['free_vcpus'] - vm['vcpus'])/n['total_vcpus']
-
             if disk_ratio >= 0 and ram_ratio >= 0 and vcpus_ratio >= 0:
                 total_ratio = weights[0]*disk_ratio + weights[1]*ram_ratio + weights[2]*vcpus_ratio
                 if total_ratio < cur_ratio:
                     cur_ratio = total_ratio
-                    result_node = n.nodename
+                    result_node = n['hostname']
+                    LOG.debug('Node name %(node)s', {'node': n['hostname']})
+        LOG.debug('Selected node %(selected_node)s', {'selected_node': result_node})
         return result_node
 
     def _schedule(self, context, spec_obj):
@@ -228,38 +249,38 @@ class FilterScheduler(driver.Scheduler):
 
 
         # NOTE(sbauza): Adding one field for any out-of-tree need
-        # spec_obj.config_options = config_options
-        # for num in range(num_instances):
-        #     # Filter local hosts based on requirements ...
-        #     hosts = self.host_manager.get_filtered_hosts(hosts,
-        #             spec_obj, index=num)
-        #     if not hosts:
-        #         # Can't get any more locally.
-        #         break
+        spec_obj.config_options = config_options
+        for num in range(num_instances):
+            # Filter local hosts based on requirements ...
+            hosts = self.host_manager.get_filtered_hosts(hosts,
+                    spec_obj, index=num)
+            if not hosts:
+                # Can't get any more locally.
+                break
 
-        #     LOG.debug("Filtered %(hosts)s", {'hosts': hosts})
+            LOG.debug("Filtered %(hosts)s", {'hosts': hosts})
 
-        #     weighed_hosts = self.host_manager.get_weighed_hosts(hosts,
-        #             spec_obj)
+            weighed_hosts = self.host_manager.get_weighed_hosts(hosts,
+                    spec_obj)
 
-        #     LOG.debug("Weighed %(hosts)s", {'hosts': weighed_hosts})
+            LOG.debug("Weighed %(hosts)s", {'hosts': weighed_hosts})
 
-        #     scheduler_host_subset_size = max(1,
-        #                                      CONF.scheduler_host_subset_size)
-        #     if scheduler_host_subset_size < len(weighed_hosts):
-        #         weighed_hosts = weighed_hosts[0:scheduler_host_subset_size]
-        #     chosen_host = random.choice(weighed_hosts)
+            scheduler_host_subset_size = max(1,
+                                             CONF.scheduler_host_subset_size)
+            if scheduler_host_subset_size < len(weighed_hosts):
+                weighed_hosts = weighed_hosts[0:scheduler_host_subset_size]
+            chosen_host = random.choice(weighed_hosts)
 
-        #     LOG.debug("Selected host: %(host)s", {'host': chosen_host})
-        #     selected_hosts.append(chosen_host)
+            LOG.debug("Selected host: %(host)s", {'host': chosen_host})
+            selected_hosts.append(chosen_host)
 
-        #     # Now consume the resources so the filter/weights
-        #     # will change for the next instance.
-        #     chosen_host.obj.consume_from_request(spec_obj)
-        #     if spec_obj.instance_group is not None:
-        #         spec_obj.instance_group.hosts.append(chosen_host.obj.host)
-        #         # hosts has to be not part of the updates when saving
-        #         spec_obj.instance_group.obj_reset_changes(['hosts'])
+            # Now consume the resources so the filter/weights
+            # will change for the next instance.
+            chosen_host.obj.consume_from_request(spec_obj)
+            if spec_obj.instance_group is not None:
+                spec_obj.instance_group.hosts.append(chosen_host.obj.host)
+                # hosts has to be not part of the updates when saving
+                spec_obj.instance_group.obj_reset_changes(['hosts'])
         return selected_hosts
 
     def _get_all_host_states(self, context):

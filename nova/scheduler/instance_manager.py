@@ -2,28 +2,28 @@ import MySQLdb
 
 class InstanceManager(object):
 	"""docstring for InstanceManager"""
-	node_details = []
 
 	def __init__(self):
 		super(InstanceManager, self).__init__()
-		node_details = []
 
 	def node_details(self):
+		node_details_array = []
 		db = MySQLdb.connect("127.0.0.1","root","password","nova")
 		cursor = db.cursor()
-		cursor.execute("select free_disk_gb,free_ram_mb,vcpus,vcpus_used,uuid,local_gb,memory_mb,host,hostname from compute_nodes")
+		cursor.execute("select free_disk_gb,free_ram_mb,vcpus,vcpus_used,uuid,local_gb,memory_mb,host from compute_nodes")
 
 		data = cursor.fetchall()
 		for row in data:
 			node_details_dict = {}
-			free_disk = row['free_disk_gb']
-			free_ram = row['free_ram_mb']
-			free_vcpus = row['vcpus'] - row['vcpus_used']
-			total_disk = row['local_gb']
-			total_ram = row['memory_mb']
-			total_vcpus = row['vcpus']
-			nodename = row['host']
-			hostname = row['hostname']
+			free_disk = row[0]
+			free_ram = row[1]
+			free_vcpus = row[2] - row[3]
+			total_disk = row[5]
+			total_ram = row[6]
+			total_vcpus = row[2]
+			nodename = row[7]
+			hostname = row[7]
+			uuid = row[4]
 			node_details_dict['nodename'] = nodename
 			node_details_dict['free_disk'] = free_disk
 			node_details_dict['free_ram'] = free_ram
@@ -32,9 +32,9 @@ class InstanceManager(object):
 			node_details_dict['total_ram'] = total_ram
 			node_details_dict['total_vcpus'] = total_vcpus
 			node_details_dict['hostname'] = hostname
-			self.node_details.append(node_details_dict)
+			node_details_array.append(node_details_dict)
 
-		return self.node_details
+		return node_details_array
 
 	def feasible_nodes(self, vm):
 		nodes = []
