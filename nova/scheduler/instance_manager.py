@@ -24,6 +24,7 @@ class InstanceManager(object):
 			nodename = row[7]
 			hostname = row[7]
 			uuid = row[4]
+			
 			node_details_dict['nodename'] = nodename
 			node_details_dict['free_disk'] = free_disk
 			node_details_dict['free_ram'] = free_ram
@@ -48,8 +49,9 @@ class InstanceManager(object):
 
 		for row in data:
 			node_dict = {}
-			hostname = row['hostname']
-			uuid = row['uuid']
+			hostname = row[1]
+			uuid = row[0]
+
 			node_dict['hostname'] = hostname
 			node_dict['uuid'] = uuid
 			nodes.append(node_dict)
@@ -61,23 +63,32 @@ class InstanceManager(object):
 		
 		db = MySQLdb.connect("127.0.0.1","root","password","nova")
 		cursor = db.cursor()
-		query_string = 'select display_name,memory_mb,vcpus,root_gb from instances where host='+str(hostname)+''
+		query_string = 'select display_name,uuid,memory_mb,vcpus,root_gb from instances where host='+str(hostname)+''
 		cursor.execute(query_string)
 
 		data = cursor.fetchall()
 
 		for row in data:
 			vm_data = {}
-			display_name = row['display_name']
-			ram = row['memory_mb']
-			vcpus = row['vcpus']
-			disk = row['root_gb']
+			uuid = row[1]
+			display_name = row[0]
+			ram = row[2]
+			vcpus = row[3]
+			disk = row[4]
 
 			vm_data['ram'] = ram
 			vm_data['vcpus'] = vcpus
 			vm_data['disk'] = disk
+			vm_data['uuid'] = uuid
+			vm_data['name'] = display_name
 
 			vm_list.append(vm_data)
-
-		
 		return vm_list
+
+	def live_migrate(self,migration_list):
+		for vm in migration_list:
+			vm_id = str(vm[0]['uuid'])
+			vm_name = str(vm[0]['name'])
+			hostname = str(vm[1])
+			subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_server_migration.sh %s %s" % (vm_id,hostname), shell=True)
+			LOG.debug("Migrating VM %(vm_name)s to %(node_name)s..", { 'vm_name': vm_name,'node_name': hostname })

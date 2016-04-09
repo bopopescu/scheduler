@@ -213,9 +213,6 @@ class FilterScheduler(driver.Scheduler):
                             min_migration_data = local_migration_data
                             min_migration_list = local_migration_list
                             result_node = f['nodename']
-
-        
-
         return result_node    
 
     def best_fit(self,vm, node_details):
