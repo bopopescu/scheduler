@@ -177,8 +177,13 @@ class FilterScheduler(driver.Scheduler):
                 local_no_migration = 0
                 local_migration_data = 0
                 vm_list = instance_manager.vm_list(f['hostname'])
-
-                temp_node_details = node_details
+                temp_node_details = []
+                for node in node_details:
+                    if node['hostname'] != f['nodename']:
+                        temp_node_details.append(node)
+                new_node_disk = f['total_disk'] - f['free_disk']
+                new_node_ram = f['total_ram'] - f['free_ram']
+                new_node_vcpus = f['total_vcpus'] - f['total_vcpus']
                 for v in vm_list:
                     dest_node = best_fit(v, temp_node_details)
                     if dest_node == None:
@@ -188,11 +193,11 @@ class FilterScheduler(driver.Scheduler):
                         local_no_migration += 1
                         local_migration_data = local_migration_data + v['disk']
 
-                        new_vm_disk = dest_node['total_disk'] - dest_node['free_disk'] - v['disk']
-                        new_vm_ram = dest_node['total_ram'] - dest_node['free_ram'] - v['ram']
-                        new_vm_vcpus = dest_node['total_vcpus'] - dest_node['free_vcpus'] - v['vcpus']
+                        new_node_disk = new_node_disk - v['disk']
+                        new_node_ram = new_node_ram - v['ram']
+                        new_node_vcpus = new_node_vcpus - v['vcpus']
 
-                        if new_vm_disk >= vm['disk'] and new_vm_vcpus >= vm['vcpus'] and new_vm_ram >= vm['ram']:
+                        if new_node_disk >= vm['disk'] and new_node_vcpus >= vm['vcpus'] and new_node_ram >= vm['ram']:
                             flag = True
                             break
 
@@ -208,6 +213,8 @@ class FilterScheduler(driver.Scheduler):
                             min_migration_data = local_migration_data
                             min_migration_list = local_migration_list
                             result_node = f['nodename']
+
+        
 
         return result_node    
 

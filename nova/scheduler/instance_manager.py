@@ -41,7 +41,7 @@ class InstanceManager(object):
 
 		db = MySQLdb.connect("127.0.0.1","root","password","nova")
 		cursor = db.cursor()
-		query_string = 'select uuid,host from compute_nodes where free_ram_mb >= '+ str(vm['ram']) +' and vcpus-vcpus_used >= '+str(vm['vcpus'])+' and local_gb-local_gbused >= '+str(vm['disk'])+''
+		query_string = 'select uuid,host from compute_nodes where memory_mb >= '+ str(vm['ram']) +' and vcpus >= '+str(vm['vcpus'])+' and local_gb >= '+str(vm['disk'])+''
 		cursor.execute(query_string)
 
 		data = cursor.fetchall()
@@ -61,7 +61,7 @@ class InstanceManager(object):
 		
 		db = MySQLdb.connect("127.0.0.1","root","password","nova")
 		cursor = db.cursor()
-		query_string = 'select display_name,memory_mb,vcpus,root_gb from instances where host='+hostname+''
+		query_string = 'select display_name,memory_mb,vcpus,root_gb from instances where host='+str(hostname)+''
 		cursor.execute(query_string)
 
 		data = cursor.fetchall()
