@@ -124,6 +124,7 @@ class ThresholdManager():
 			LOG.debug('Server data Paused %(on_pause)s', {'on_pause': on_demand_low_paused_servers})
 			for i in on_demand_low_paused_servers:
 				if i['vm_state'] == 'paused':
+					server_name = i['uuid']
 					subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_unpause_server.sh %s" % (str(server_name)), shell=True)
 					LOG.debug("Unpausing %(unpaused_server)s", {'unpaused_server':i['name']})
 		elif total_usage >=25 and total_usage < 44:
@@ -134,6 +135,7 @@ class ThresholdManager():
 			LOG.debug('Server data Paused %(on_pause)s', {'on_pause': on_demand_low_paused_servers})
 			for i in on_demand_low_paused_servers:
 				if i['vm_state'] == 'paused':
+					server_name = i['uuid']
 					subprocess.Popen("/opt/stack/nova/nova/scheduler/./nova_unpause_server.sh %s" % (str(server_name)), shell=True)
 					LOG.debug("Unpausing %(unpaused_server)s", {'unpaused_server':i['name']})
 
