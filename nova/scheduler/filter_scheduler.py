@@ -146,16 +146,7 @@ class FilterScheduler(driver.Scheduler):
                             'disk_gb': selected_node_details['total_disk']}}]
 
         return dest
-
-        # result_nodes = []
-        # for i in num_instances:
-        #     result = self.best_fit(vm_details, node_details)
-        #     result_nodes.append(result)
-
-        # dests = [dict(host=node['nodename'], nodename=node['hostname']) for node in result_nodes]
-
-        # return dests
-
+        
     def _get_configuration_options(self):
         """Fetch options dictionary. Broken out for testing."""
         return self.options.get_configuration()
@@ -213,6 +204,9 @@ class FilterScheduler(driver.Scheduler):
                             min_migration_data = local_migration_data
                             min_migration_list = local_migration_list
                             result_node = f['nodename']
+
+        if len(min_migration_list) != 0:
+
         return result_node    
 
     def best_fit(self,vm, node_details):
